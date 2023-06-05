@@ -1,10 +1,10 @@
 # benchmarking-structural-variant-callers
 ### Description
-In this project, I benchmarked several long-read structural variant (SV) callers (cuteSV, DeBreak, PBSV, Sniffles, SVDSS, and SVIM) on a range of sequencing depths (5X, 10X, 15X, 20X, 25X, 30X, MAX) in order to determine the minimum depth allowing for the most sufficient yield of structural variant calls. With these benchmarking statistics, a cost-effective sequencing depth can be determined to generate new data for SV studies. For this analysis, I used data of the SK-BR-3 breast cancer cell line (SKBR3) from three sequencing platforms: Oxford Nanopore Technologies (ONT), PacBio Continuous Long Reads (PBCLR), and Illumina short-reads (SR).
+In this project, I benchmarked several long-read structural variant (SV) callers (cuteSV, DeBreak, PBSV, Sniffles, SVDSS, and SVIM) on a range of sequencing depths (5X, 10X, 15X, 20X, 25X, 30X, MAX) in order to determine the minimum depth allowing for the most sufficient yield of structural variant calls. With these benchmarking statistics, a cost-effective sequencing depth can be determined to generate new data for SV studies. For this analysis, I used data of the SK-BR-3 breast cancer cell line (SKBR3) from three sequencing platforms: Oxford Nanopore Technologies (ONT), PacBio Continuous Long Reads (PBCLR), and Illumina short-reads (SR).<br>
+
  ## 1. Alignment
- I used minimap2 to align long-reads (ONT and PBCLR) and bwa-mem2 to align the short-reads (SR) using the GRCh38.p13 assembly.
-```
-#!/bin/bash
+ I used minimap2 to align long-reads (ONT and PBCLR) and bwa-mem2 to align the short-reads (SR) on GRCh38.p13.
+```bash
 # indexing
 
 minimap2 -d GRCh38.p13.genome.mmi GRCh38.p13.genome.fa
@@ -24,7 +24,7 @@ bwa_index SR_R1.fastq SR_R2.fastq > SKBR3_SR_MAX.sam
 The -Y and -R options are both necessary for downstream SV analysis. -Y determines softclipping for supplementary alignments. -R is required by PBSV and GATK tools. [See here](https://gatk.broadinstitute.org/hc/en-us/articles/360035890671-Read-groups) learn about read groups. 
 
 After the alignment, samtools can convert the three SAM files into sorted BAMs. 
-```
+```bash
 for samfile in *MAX.sam
 do
 name=$(basename ${samfile} _MAX.sam)
@@ -39,15 +39,13 @@ And the resulting file names would be:
 
 ## 2. Subsampling
 `samtools view --subsample` can perform subsampling of the data. First, the coverages of the "MAX" depth files must be calculated. 
-```
-#!/bin/bash
-
+```bash
 max_ONT=$(python get_genome_depth.py SKBR3_ONT_sort_MAX.bam)
 max_PBCLR=$(python get_genome_depth.py SKBR3_PBCLR_sort_MAX.bam)
 max_SR=$(python get_genome_depth.py SKBR3_SR_sort_MAX.bam)
 ```
 Then calculate the `-s` or `--subsample` float, which is the fraction of target depth over MAX depth. In this analysis, I subsampled at depths at 5X to 30X with an interval of 5X. 
-```
+```bash
 for target in {5,10,15,20,25,30}
 do
 ONT_FRAC=$(bc -l <<< $target/$max_ONT)
@@ -57,7 +55,7 @@ samtools view -s ${ONT_FRAC} -b SKBR3_ONT_sort_MAX.bam > SKBR3_ONT_sort_${d}X.ba
 samtools view -s ${PBCLR_FRAC} -b SKBR3_PBCLR_sort_MAX.bam > SKBR3_PBCLR_sort_${d}X.bam
 samtools view -s ${SR_FRAC} -b SKBR3_SR_sort_MAX.bam > SKBR3_SR_sort_${d}X.bam
 done
-```
+```bash
 There will be several files after this step. Example of resulting files with file name patterns:
 >SKBR3_ONT_sort_5X.bam<br>
 >SKBR3_ONT_sort_10X.bam<br>
@@ -65,7 +63,7 @@ There will be several files after this step. Example of resulting files with fil
 >SKBR3_SR_sort_10X.bam<br>
 
 Lastly, index the files. 
-```
+```bash
 for bamfile in $(ls *.bam)
 do
 samtools index $bamfile -@ 16
@@ -77,8 +75,7 @@ Now, structural variant callers can be run on our long-read data. Some callers o
 `xx` here is from a method of batch submission. Including an example under cuteSV.
 ### cuteSV
 I used the suggested cuteSV parameters for ONT and PacBio CLR data. Read about cuteSV [here](https://github.com/tjiangHIT/cuteSV). 
-```
-#!/bin/bash
+```bash
 Tech=$(echo "xx" | awk -F'[_]' '{print $2}')
 
 if [[ $Tech == "ONT" ]]
@@ -98,7 +95,7 @@ cuteSV xx.bam GRCh38.p13.genome.fa xx.vcf cuteSV/xx/ \
 fi
 ```
 <br>Batch submission:
-```
+```bash
 q="'"
 for file in *.bam ## careful here if LR and SR BAMs are not separated. Run LR callers on LR data.
 do
@@ -113,7 +110,7 @@ done
 ```
 ### DeBreak
 DeBreak includes a filter based on depth if given `--depth` option. Read about DeBreak [here](https://github.com/Maggi-Chen/DeBreak). An example using depth:
-```
+```bash
 DepthX=$(echo "xx" | awk -F'[_]' '{print $4}')
 Depth=$(STRING=$DepthX ; echo "${STRING//[!0-9]/}")
 
@@ -122,13 +119,13 @@ debreak --bam xx.bam \
 ```
 ### PBSV
 PBSV has two steps: `discover` and `call`. Use of the tandem repeats file is highly recommended. Read about PBSV [here](https://github.com/PacificBiosciences/pbsv).
-```
+```bash
 pbsv discover --tandem-repeats human_GRCh38_no_alt_analysis_set.trf.bed xx.bam PBSV/xx/xx.svsig.gz
 pbsv call -j 8 GRCh38.p13.genome.fa PBSV/xx/xx.svsig.gz PBSV/xx/xx.var.vcf
 ```
 ### Sniffles
 Sniffles can also take advantage of a tandem repeats file. `minsvlen` is used here to just get SVs greater than or equal to 50 bp in length. Read about Sniffles [here](https://github.com/fritzsedlazeck/Sniffles).
-```
+```bash
 sniffles --threads 4 -i xx.bam -v Sniffles/xx/xx.vcf \
 --tandem-repeats human_GRCh38_no_alt_analysis_set.trf.bed \
 --reference GRCh38.p13.genome.fa \
@@ -136,11 +133,11 @@ sniffles --threads 4 -i xx.bam -v Sniffles/xx/xx.vcf \
 ```
 ### SVDSS
 There are multiple steps to running SVDSS. Read about SVDSS [here](https://github.com/Parsoa/SVDSS).
-```
+```bash
 # do this once
 SVDSS index --fastq GRCh38.p13.genome.fa --index SVDSS/GRCh38.p13.genome.bwt --threads 16
 ```
-```
+```bash
 # in a batch submission style
 SVDSS smooth --bam xx.bam --workdir SVDSS/xx/ --reference GRCh38_p13/GRCh38.p13.genome.fa --threads 16
 
@@ -157,13 +154,13 @@ SVDSS call --reference GRCh38.p13.genome.fa --bam SVDSS/xx/smoothed.selective.ba
 ```
 ### SVIM
 Read about SVIM [here](https://github.com/eldariont/svim).
-```
+```bash
 svim alignment SVIM/xx/ xx.bam GRCh38.p13.genome.fa
 ```
 
 ### SV calling on short-read data
 We are not interested in benchmarking short-read callers as our future studies involve only long-read data. It can still be useful in building a comprehensive groundtruth set. Read about [lumpy](https://github.com/arq5x/lumpy-sv) and [SvABA](https://github.com/walaj/svaba). 
-```
+```bash
 # lumpy
 lumpyexpress -B SKBR3_SR_sort_MAX.bam -o SKBR3_SR_sort_MAX.vcf
 
@@ -172,7 +169,7 @@ svaba run -t SKBR3_SR_sort_MAX.bam -p 8 -D dbsnp_indel.vcf -a SKBR3_SR_sort_MAX 
 
 ```
 
-## 4. FILTERING VCFs
+## 4. Filtering VCFs
 To filter the VCFs, it is important to first examine the information field given by each caller and determine the best filtering criteria. 
 For my analysis, I filtered each depth according to the minimum supporting reads below. Based on my preliminary benchmarking statistics, the filtering used here can and should be improved upon. 
 
@@ -191,7 +188,7 @@ For my analysis, I filtered each depth according to the minimum supporting reads
 The following is an example of filtering all of the cuteSV VCFs. Here, the directory cuteSV contains several subdirectories, each named according to the file name pattern and contains the VCF output from the caller. `minsup_byname.py SKBR3_ONT_sort_5X` will output the minimum supporting reads for 5X, which is `2` based on the table above. Then `bcftools view -i` can filter the `INFO/RE` field using `$MinSup`, along with other necessary filters. The `filtervcf_based_on_length.py` filters based on SV length or the `SVLEN` field, only keeping calls with an absolute value greater than or equal to 50. This is important for accurate benchmarking since the ground truth set will only contain SVs >= 50 bp in length. 
 
 ### cuteSV
-```
+```bash
 for name in cuteSV/*/
 do
 MinSup=$(python minsup_byname.py ${name})
@@ -203,7 +200,7 @@ done
 ```
 ### other callers
 The final location of the final filtered VCFs go into a folder titled `filtered_vcf` with the SV tool name added to the beginning of the file names. There is room for improvement on these filtering criteria.  
-```
+```bash
 # DeBreak
 bcftools view -i 'FILTER == "PASS" && INFO/PRECISE == 1 && INFO/SUPPREAD >= '"$MinSup"'' ${name}.vcf > temp_DeBreak_${name}.vcf
 python filter_vcf_based_on_length.py -i temp_DeBreak_${name}.vcf -o ~/filtered_vcf/DeBreak_${name}.vcf -l 50
@@ -236,18 +233,17 @@ python SVclassifier_SvABA.py -i SKBR3_SR_sort_MAX.svaba.sv.vcf -o ~/filtered_vcf
 ```
 
 ## 5. Preparing the ground truth set
-To prepare the ground truth for benchmarking, I used the package `SURVIVOR` and the MAX depth VCFs from all callers, both long-read and short-read. 
+To prepare the ground truth for benchmarking, I used the package `SURVIVOR` and the MAX depth VCFs from all callers, both long-read and short-read. Read about SURVIVOR [here](https://github.com/fritzsedlazeck/SURVIVOR/wiki)
 First, I made sure the VCFs for `SURVIVOR` were sorted.
-```
+```bash
 cd filtered_vcf
 for maxfile in *MAX.vcf
 do
 bcftools sort $maxfile -o sorted_$maxfile
 done
 ```
-Then I ran `SURVIVOR merge` using intersections and unions as outlined below. In this analysis, intersections used options `50 2 0 0 0 50`, meaning that the maximum allowed distance between SVs was 50, the agreement of SV type and strand was disregarded, and only SVs greater or equal to 50 bp in length were compared. For unions, the `2` was changed to `0`. Read about SURVIVOR [here](https://github.com/fritzsedlazeck/SURVIVOR/wiki). 
-```
-
+Then I ran `SURVIVOR merge` using intersections and unions as outlined below. In this analysis, intersections used options `50 2 0 0 0 50`, meaning that the maximum allowed distance between SVs was 50, the agreement of SV type and strand was disregarded, and only SVs greater or equal to 50 bp in length were compared. For unions, the `2` was changed to `0`. . 
+```bash
 # Intersections. Within ONT, PBCLR, SR
 ls sorted*ONT*.vcf > ONT_sample_files
 SURVIVOR merge ONT_sample_files 50 2 0 0 0 50 truth_set/ONT_LR_gt.vcf
@@ -270,7 +266,7 @@ SURVIVOR merge final_sample_files 50 0 0 0 0 50 final_gt.vcf
 
 ## 6. Benchmarking
 `TRUVARI` was used to for benchmarking. This package requires all VCFs used in comparisons in the `.gzip` and `.gzip.tbi` formats. Read about TRUVARI [here](https://github.com/ACEnglish/truvari).
-```
+```bash
 # gzip and index the filtered VCFs
 for file in filtered_vcf/*.vcf
 do
@@ -296,14 +292,14 @@ done
 The following are methods I used to extract benchmarking results, number of SV calls and types by caller, and ground truth information so I could more easily create plots in R. 
 ### Benchmarking statistics
 `TRUVARI` outputs a `summary.json` file for each comparison with the ground truth (e.g., PBSV_SKBR3_ONT_sort_25X.vcf with final_gt.vcf). `get_benchmark.py` should create a table with the Caller, Tech (ONT/PBCLR), Depth, Precision, Recall, and F1 as columns, and corresponding values from each comparison in the rows. This only works if correct file name patterns and output directory were used. 
-```
+```bash
 results=benchmarking/
 # subdirectories created by TRUVARI within the benchmarking folder might look like cuteSV_SKBR3_ONT_sort_5X/ and DeBreak_SKBR3_PBCLR_sort_30X
 python get_benchmark.py ${results}
 ```
 ### SV calls by depth and caller
 Using `SURVIVOR stats` and bash version to get total SVs, DEL, DUP, INS, INV, TRA in a table:
-```
+```bash
 # header for results file
 echo -e "Caller\tTech\tDepth\tTot\tDEL\tDUP\tINS\tINV\tTRA" >> results/caller_results.txt
 
@@ -324,7 +320,7 @@ done
 ```
 ### Ground truth
 A similar method using bash for a table of SVs contained by the ground truth VCF:
-```
+```bash
 # header for results file
 echo -e "Tot\tDEL\tDUP\tINS\tINV\tTRA" >> results/truth_results.txt
 
