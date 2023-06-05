@@ -124,7 +124,7 @@ pbsv discover --tandem-repeats human_GRCh38_no_alt_analysis_set.trf.bed xx.bam P
 pbsv call -j 8 GRCh38.p13.genome.fa PBSV/xx/xx.svsig.gz PBSV/xx/xx.var.vcf
 ```
 ### Sniffles
-Sniffles can also take advantage of a tandem repeats file. `minsvlen` is used here to just get SVs greater than or equal to 50 bp in length. Read about Sniffles [here](https://github.com/fritzsedlazeck/Sniffles).
+Sniffles can also take advantage of a tandem repeats file. `--minsvlen` is used here to just get SVs greater than or equal to 50 bp in length. Read about Sniffles [here](https://github.com/fritzsedlazeck/Sniffles).
 ```bash
 sniffles --threads 4 -i xx.bam -v Sniffles/xx/xx.vcf \
 --tandem-repeats human_GRCh38_no_alt_analysis_set.trf.bed \
@@ -139,7 +139,7 @@ SVDSS index --fastq GRCh38.p13.genome.fa --index SVDSS/GRCh38.p13.genome.bwt --t
 ```
 ```bash
 # in a batch submission style
-SVDSS smooth --bam xx.bam --workdir SVDSS/xx/ --reference GRCh38_p13/GRCh38.p13.genome.fa --threads 16
+SVDSS smooth --bam xx.bam --workdir SVDSS/xx/ --reference GRCh38.p13.genome.fa --threads 16
 
 samtools index SVDSS/xx/smoothed.selective.bam SVDSS/xx/smoothed.selective.bam.bai -@ 16
 
