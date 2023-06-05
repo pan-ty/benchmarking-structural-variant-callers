@@ -73,8 +73,8 @@ done
 ```
 
 ## 3. Calling structural variants (SVs)
-Now, using the structural variant callers on the long-read data. Some callers offer filtering options for output SVs based on minimum supporting reads. I suggest not using these options and filter the output raw VCFs yourself instead using `bcftools`. Then you won't need to rerun callers every time you decide to change your criteria. In my analysis, I organized my output directories following this format `SVcaller/sample/output` or `cuteSV/SKBR3_ONT_sort_5X/output`. <br><br>
-`xx` here is from a method of [batch submission]. 
+Now, structural variant callers can be run on our long-read data. Some callers offer filtering options for output SVs based on minimum supporting reads. I suggest not using these options and filter the output raw VCFs yourself instead using `bcftools`. Then you won't need to rerun callers every time you decide to change your criteria. In my analysis, I organized my output directories following this format `SVcaller/sample/output` or `cuteSV/SKBR3_ONT_sort_5X/output`. <br><br>
+`xx` here is from a method of batch submission. Including an example under cuteSV.
 ### cuteSV
 I used the suggested cuteSV parameters for ONT and PacBio CLR data. Read about cuteSV [here](https://github.com/tjiangHIT/cuteSV). 
 ```
@@ -97,6 +97,20 @@ cuteSV xx.bam GRCh38.p13.genome.fa xx.vcf cuteSV/xx/ \
 --diff_ratio_merging_DEL 0.3
 fi
 ```
+<br>Batch submission:
+```
+q="'"
+for file in *.bam ## careful here if LR and SR BAMs are not separated. Run LR callers on LR data.
+do
+name=$(basename ${file} .bam)
+echo cp cuteSV.sh cuteSV_${file}.sh >> cuteSV_batch_submit.sh;
+echo perl -pi -w -e ${q}s/xx/${name}/g${q} cuteSV_${file}.sh >> cuteSV_batch_submit.sh;
+echo sbatch cuteSV_${file}.sh >> cuteSV_batch_submit.sh
+mkdir cuteSV/${name}
+done
+
+# then run cuteSV_batch_submit.sh to the scheduler
+```
 ### DeBreak
 DeBreak includes a filter based on depth if given `--depth` option. Read about DeBreak [here](https://github.com/Maggi-Chen/DeBreak). An example using depth:
 ```
@@ -104,17 +118,45 @@ DepthX=$(echo "xx" | awk -F'[_]' '{print $4}')
 Depth=$(STRING=$DepthX ; echo "${STRING//[!0-9]/}")
 
 debreak --bam xx.bam \
--o DeBreak/xx/ \
--t 8 \
---rescue_large_ins \
---rescue_dup \
---poa \
---ref GRCh38.p13.genome.fa \
---depth $Depth
+-o DeBreak/xx/ -t 8 --rescue_large_ins --rescue_dup --poa --ref GRCh38.p13.genome.fa --depth $Depth
 ```
 ### PBSV
-PBSV has two steps: `discover` and `call`. Use of the tandem repeat file is highly recommended. Read about PBSV [here](https://github.com/PacificBiosciences/pbsv)
+PBSV has two steps: `discover` and `call`. Use of the tandem repeats file is highly recommended. Read about PBSV [here](https://github.com/PacificBiosciences/pbsv).
 ```
 pbsv discover --tandem-repeats human_GRCh38_no_alt_analysis_set.trf.bed xx.bam PBSV/xx/xx.svsig.gz
 pbsv call -j 8 GRCh38.p13.genome.fa PBSV/xx/xx.svsig.gz PBSV/xx/xx.var.vcf
+```
+### Sniffles
+Sniffles can also take advantage of a tandem repeats file. `minsvlen` is used here to just get SVs greater than or equal to 50 bp in length. Read about Sniffles [here](https://github.com/fritzsedlazeck/Sniffles).
+```
+sniffles --threads 4 -i xx.bam -v Sniffles/xx/xx.vcf \
+--tandem-repeats human_GRCh38_no_alt_analysis_set.trf.bed \
+--reference GRCh38.p13.genome.fa \
+--minsvlen 50
+```
+### SVDSS
+There are multiple steps to running SVDSS. Read about SVDSS [here](https://github.com/Parsoa/SVDSS).
+```
+# do this once
+SVDSS index --fastq GRCh38.p13.genome.fa --index SVDSS/GRCh38.p13.genome.bwt --threads 16
+```
+```
+# in a batch submission style
+SVDSS smooth --bam xx.bam --workdir SVDSS/xx/ --reference GRCh38_p13/GRCh38.p13.genome.fa --threads 16
+
+samtools index SVDSS/xx/smoothed.selective.bam SVDSS/xx/smoothed.selective.bam.bai -@ 16
+
+SVDSS search --index SVDSS/GRCh38.p13.genome.bwt --bam SVDSS/xx/smoothed.selective.bam --workdir SVDSS/xx/ --assemble --threads 16
+
+# For the next step, `--batches` is how many `.sfs` files were output from previous steps
+
+dir=SVDSS/xx/
+N=$(ls -dq $dir*sfs* | wc -l)
+
+SVDSS call --reference GRCh38.p13.genome.fa --bam SVDSS/xx/smoothed.selective.bam --workdir SVDSS/xx/ --batches $N --threads 16
+```
+### SVIM
+Read about SVIM [here](https://github.com/eldariont/svim).
+```
+svim alignment SVIM/xx/ xx.bam GRCh38.p13.genome.fa
 ```
