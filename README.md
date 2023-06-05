@@ -1,6 +1,6 @@
 # benchmarking-structural-variant-callers
 ### Description
-In this project, I benchmarked several long-read structural variant callers (cuteSV, DeBreak, PBSV, Sniffles, SVDSS, and SVIM) on a range of sequencing depths (5X, 10X, 15X, 20X, 25X, 30X, MAX) in order to determine the minimum depth allowing for the most sufficient yield of structural variant calls. With these benchmarking statistics, a cost-effective sequencing depth can be determined to generate new data. For this analysis, I used data of the SK-BR-3 breast cancer cell from three sequencing platforms: Oxford Nanopore Technologies (ONT), PacBio Continuous Long Reads (PBCLR), and Illumina short-reads (SR).
+In this project, I benchmarked several long-read structural variant (SV) callers (cuteSV, DeBreak, PBSV, Sniffles, SVDSS, and SVIM) on a range of sequencing depths (5X, 10X, 15X, 20X, 25X, 30X, MAX) in order to determine the minimum depth allowing for the most sufficient yield of structural variant calls. With these benchmarking statistics, a cost-effective sequencing depth can be determined to generate new data for SV studies. For this analysis, I used data of the SK-BR-3 breast cancer cell line (SKBR3) from three sequencing platforms: Oxford Nanopore Technologies (ONT), PacBio Continuous Long Reads (PBCLR), and Illumina short-reads (SR).
  ## 1. Alignment
  I used minimap2 to align long-reads (ONT and PBCLR) and bwa-mem2 to align the short-reads (SR) using the GRCh38.p13 assembly.
 ```
@@ -160,3 +160,57 @@ Read about SVIM [here](https://github.com/eldariont/svim).
 ```
 svim alignment SVIM/xx/ xx.bam GRCh38.p13.genome.fa
 ```
+
+## 4. FILTERING VCFs
+To filter the VCFs, it is important to first examine the information field given by each caller and determine the best filtering criteria. 
+For my analysis, I filtered each depth according to the minimum supporting reads below. Based on my preliminary benchmarking statistics, the filtering used here can and should be improved upon. 
+
+| Depth | Min Supp |
+| ----- | -------- |
+| 5X | 2 |
+| 10X | 3 |
+| 15X | 4 |
+| 20X | 5 |
+| 25X | 6 |
+| 30X | 7 |
+| 59X (SR MAX) | 12 | 
+| 61X (ONT MAX) | 12 | 
+| 112X (PBCLR MAX) | 15 | 
+
+The following is a complete example of filtering the cuteSV VCFs. Here, the directory cuteSV contains several subdirectories, each named according to the file name pattern and contains the VCF output from the caller. `minsup_byname.py SKBR3_ONT_sort_5X` will output the minimum supporting reads for 5X, which is `2` based on the table above. Then `bcftools view -i` can filter the `INFO/RE` field using `$MinSup`, along with other necessary filters. The `filtervcf_based_on_length.py` filters based on SV length or the `SVLEN` field, only keeping calls with an absolute value greater than or equal to 50. This is important for accurate benchmarking since the ground truth set will only contain SVs >= 50 bp in length. 
+
+### cuteSV
+```
+for name in cuteSV/*/
+do
+MinSup=$(python minsup_byname.py ${name})
+cd cuteSV/${name}/
+bcftools view -i 'FILTER == "PASS" && INFO/PRECISE == 1 && INFO/RE >= '$MinSup ${samplename}.vcf > temp_cuteSV_${name}.vcf
+python filtervcf_based_on_length.py -i temp_cuteSV_${name}.vcf -o ~/filtered_vcf/cuteSV_${name}.vcf -l 50
+rm temp_cuteSV_${name}.vcf
+done
+```
+### other callers
+The final location of the final filtered VCFs go into a folder titled `filtered_vcf` with the SV tool name added to the beginning of the file names. There is room for improvement on these filtering criteria.  
+```
+# DeBreak
+bcftools view -i 'FILTER == "PASS" && INFO/PRECISE == 1 && INFO/SUPPREAD >= '"$MinSup"'' ${name}.vcf > temp_DeBreak_${name}.vcf
+python filter_vcf_based_on_length.py -i temp_DeBreak_${name}.vcf -o ~/filtered_vcf/DeBreak_${name}.vcf -l 50
+
+# PBSV
+bcftools filter -i 'FILTER=="PASS" && FORMAT/AD[0:1]>='"${MinSup}"  ${name}.var.vcf > temp_PBSV_${name}.vcf
+python filter_vcf_based_on_length.py -i temp_PBSV_${name}.vcf -o ~/filtered_vcf/PBSV_${name}.vcf -l 50
+
+# Sniffles
+bcftools view -i 'INFO/SUPPORT >= '"$MinSup"' && INFO/IMPRECISE != 1' ${name}.vcf > temp_Sniffles_${name}.vcf
+python filter_vcf_based_on_length.py -i temp_Sniffles_${name}.vcf -o ~/filtered_vcf/Sniffles_${name}.vcf -l 50
+
+# SVDSS
+bcftools view -i 'FILTER == "PASS" && INFO/COV >= '"$MinSup" svs_poa.vcf > temp_SVDSS_${name}.vcf
+python filter_vcf_based_on_length.py -i temp_SVDSS_${name}.vcf -o ~/filtered_vcf/SVDSS_${name}.vcf -l 50
+
+# SVIM
+bcftools filter -i 'QUAL >= '"$MinSup"'&& FILTER == "PASS" && INFO/SUPPORT >= 2' variants.vcf > temp_SVIM_${name}.vcf
+python filter_vcf_based_on_length.py -i temp_SVIM_${name}.vcf -o ~/filtered_vcf/SVIM_${name}.vcf -l 50
+```
+
