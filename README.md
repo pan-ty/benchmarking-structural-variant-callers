@@ -236,7 +236,7 @@ python SVclassifier_SvABA.py -i SKBR3_SR_sort_MAX.svaba.sv.vcf -o ~/filtered_vcf
 ```
 
 ## 5. Preparing the ground truth set
-For the ground truth, I used the package `SURVIVOR` and the MAX depth VCFs from all callers, both long-read and short-read. 
+To prepare the ground truth for benchmarking, I used the package `SURVIVOR` and the MAX depth VCFs from all callers, both long-read and short-read. 
 First, I made sure the VCFs for `SURVIVOR` were sorted.
 ```
 cd filtered_vcf
@@ -267,4 +267,43 @@ SURVIVOR merge LR_sample_files 50 0 0 0 0 50 union_LR_gt.vcf
 ls union_LR_gt.vcf SR_gt.vcf > final_sample_files
 SURVIVOR merge final_sample_files 50 0 0 0 0 50 final_gt.vcf
 ```
+
+## 6. Benchmarking
+`TRUVARI` was used to for benchmarking. This package requires all VCFs used in comparisons in the `.gzip` and `.gzip.tbi` formats. Read about TRUVARI [here](https://github.com/ACEnglish/truvari).
+```
+# gzip and index the filtered VCFs
+for file in filtered_vcf/*.vcf
+do
+bcftools sort ${file} -Oz -o filtered_vcf/processed/${file}.gz
+bcftools index -t filtered_vcf/processed/${file}.gz
+done
+
+# gzip and index ground truth VCF
+bcftools sort truth_set/final_gt.vcf -Oz -o truth_set/final_gt.vcf.gz
+bcftools index -t truth_set/final_gt.vcf.gz
+
+
+# Run benchmarking
+gt=truth_set/final_gt.vcf.gz
+for sample in filtered_vcf/processed/*.vcf.gz
+do
+name=$(basename ${sample} .vcf.gz)
+truvari bench -b ${gt} -c filtered_vcf/processed/${sample} -o benchmarking/${sample}
+done
+```
+
+## 7. Results
+The following are methods I used to extract benchmarking results, number of SV calls and types by caller, and ground truth information so I could more easily create plots in R. 
+### Benchmarking
+`TRUVARI` outputs a `summary.json` file for each comparison with the ground truth (e.g., PBSV_SKBR3_ONT_sort_25X.vcf with final_gt.vcf). `get_benchmark.py` should create a table with the Caller, Tech (ONT/PBCLR), Depth, Precision, Recall, and F1 as columns, and corresponding values from each comparison in the rows. This only works if correct file name patterns and output directory were used. 
+```
+results=benchmarking/
+# subdirectories created by TRUVARI within the benchmarking folder might look like cuteSV_SKBR3_ONT_sort_5X/ and DeBreak_SKBR3_PBCLR_sort_30X
+python get_benchmark.py ${results}
+```
+### SV calls
+```
+
+```
+### Ground truth
 
