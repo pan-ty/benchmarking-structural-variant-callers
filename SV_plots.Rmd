@@ -17,7 +17,6 @@ font_import("~/R/x86_64-pc-linux-gnu-library/fonts/",pattern=".TTF") # downloade
 font_import("~/R/x86_64-pc-linux-gnu-library/fonts/",pattern=".ttf")
 extrafont::loadfonts()
 
-setwd("~/yanglab/ANALYSIS/")
 ```
 
 ```{r Read in data}
