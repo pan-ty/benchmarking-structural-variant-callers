@@ -1,4 +1,4 @@
-#!/home/tpg8911/.conda/envs/gendepth/bin/python
+#!/usr/bin/env python
 # _*_ coding=utf-8 _*_
 import pysam
 import sys
