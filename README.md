@@ -72,7 +72,7 @@ done
 
 ## 3. Calling structural variants (SVs)
 Now, structural variant callers can be run on our long-read data. Some callers offer filtering options for output SVs based on minimum supporting reads. I suggest not using these options and filter the output raw VCFs yourself instead using `bcftools`. Then you won't need to rerun callers every time you decide to change your criteria. In my analysis, I organized my output directories following this format `SVcaller/sample/output` or `cuteSV/SKBR3_ONT_sort_5X/output`. <br><br>
-`xx` here is from a method of batch submission. Including an example under cuteSV.
+`xx` here is from a method of batch submission. `xx` is the sample name (e.g., `SKBR3_ONT_sort_10X`) Including an example of batch submission under cuteSV.
 ### cuteSV
 I used the suggested cuteSV parameters for ONT and PacBio CLR data. Read about cuteSV [here](https://github.com/tjiangHIT/cuteSV). 
 ```bash
