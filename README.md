@@ -2,7 +2,7 @@
 ### Description
 In this project, I benchmarked several long-read structural variant callers (cuteSV, DeBreak, PBSV, Sniffles, SVDSS, and SVIM) on a range of sequencing depths (5X, 10X, 15X, 20X, 25X, 30X, MAX) in order to determine the minimum depth allowing for the most sufficient yield of structural variant calls. With these benchmarking statistics, a cost-effective sequencing depth can be determined to generate new data. For this analysis, I used data of the SK-BR-3 breast cancer cell from three sequencing platforms: Oxford Nanopore Technologies (ONT), PacBio Continuous Long Reads (PBCLR), and Illumina short-reads (SR).
  ## 1. Alignment
- I used minimap2 to align long-reads (ONT and PBCLR) and bwa-mem2 to align the short-reads (SR) onto the GRCh38.p13 assembly.
+ I used minimap2 to align long-reads (ONT and PBCLR) and bwa-mem2 to align the short-reads (SR) using the GRCh38.p13 assembly.
 ```
 #!/bin/bash
 # indexing
@@ -72,3 +72,49 @@ samtools index $bamfile -@ 16
 done
 ```
 
+## 3. Calling structural variants (SVs)
+Now, using the structural variant callers on the long-read data. Some callers offer filtering options for output SVs based on minimum supporting reads. I suggest not using these options and filter the output raw VCFs yourself instead using `bcftools`. Then you won't need to rerun callers every time you decide to change your criteria. In my analysis, I organized my output directories following this format `SVcaller/sample/output` or `cuteSV/SKBR3_ONT_sort_5X/output`. <br><br>
+`xx` here is from a method of [batch submission]. 
+### cuteSV
+I used the suggested cuteSV parameters for ONT and PacBio CLR data. Read about cuteSV [here](https://github.com/tjiangHIT/cuteSV). 
+```
+#!/bin/bash
+Tech=$(echo "xx" | awk -F'[_]' '{print $2}')
+
+if [[ $Tech == "ONT" ]]
+then
+cuteSV xx.bam GRCh38.p13.genome.fa xx.vcf cuteSV/xx/ \
+--max_cluster_bias_INS 100 \
+--diff_ratio_merging_INS 0.3 \
+--max_cluster_bias_DEL 100 \
+--diff_ratio_merging_DEL 0.3
+elif [[ $Tech == "PBCLR" ]]
+then
+cuteSV xx.bam GRCh38.p13.genome.fa xx.vcf cuteSV/xx/ \
+--max_cluster_bias_INS 100 \
+--diff_ratio_merging_INS 0.3 \
+--max_cluster_bias_DEL 200 \
+--diff_ratio_merging_DEL 0.3
+fi
+```
+### DeBreak
+DeBreak includes a filter based on depth if given `--depth` option. Read about DeBreak [here](https://github.com/Maggi-Chen/DeBreak). An example using depth:
+```
+DepthX=$(echo "xx" | awk -F'[_]' '{print $4}')
+Depth=$(STRING=$DepthX ; echo "${STRING//[!0-9]/}")
+
+debreak --bam xx.bam \
+-o DeBreak/xx/ \
+-t 8 \
+--rescue_large_ins \
+--rescue_dup \
+--poa \
+--ref GRCh38.p13.genome.fa \
+--depth $Depth
+```
+### PBSV
+PBSV has two steps: `discover` and `call`. Use of the tandem repeat file is highly recommended. Read about PBSV [here](https://github.com/PacificBiosciences/pbsv)
+```
+pbsv discover --tandem-repeats human_GRCh38_no_alt_analysis_set.trf.bed xx.bam PBSV/xx/xx.svsig.gz
+pbsv call -j 8 GRCh38.p13.genome.fa PBSV/xx/xx.svsig.gz PBSV/xx/xx.var.vcf
+```
