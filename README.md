@@ -161,6 +161,16 @@ Read about SVIM [here](https://github.com/eldariont/svim).
 svim alignment SVIM/xx/ xx.bam GRCh38.p13.genome.fa
 ```
 
+### SV calling on short-read data
+We are not interested in benchmarking short-read callers as our future studies involve only long-read data. It can still be useful in building a comprehensive groundtruth set. Read about [lumpy](https://github.com/arq5x/lumpy-sv) and [SvABA](https://github.com/walaj/svaba). 
+```
+# lumpy
+lumpyexpress -B SKBR3_SR_sort_MAX.bam -o SKBR3_SR_sort_MAX.vcf
+
+# SvABA
+svaba run -t SKBR3_SR_sort_MAX.bam -p 8 -D dbsnp_indel.vcf -a SKBR3_SR_sort_MAX -G GRCh38.p13.genome.fa
+```
+
 ## 4. FILTERING VCFs
 To filter the VCFs, it is important to first examine the information field given by each caller and determine the best filtering criteria. 
 For my analysis, I filtered each depth according to the minimum supporting reads below. Based on my preliminary benchmarking statistics, the filtering used here can and should be improved upon. 
@@ -177,7 +187,7 @@ For my analysis, I filtered each depth according to the minimum supporting reads
 | 61X (ONT MAX) | 12 | 
 | 112X (PBCLR MAX) | 15 | 
 
-The following is a complete example of filtering the cuteSV VCFs. Here, the directory cuteSV contains several subdirectories, each named according to the file name pattern and contains the VCF output from the caller. `minsup_byname.py SKBR3_ONT_sort_5X` will output the minimum supporting reads for 5X, which is `2` based on the table above. Then `bcftools view -i` can filter the `INFO/RE` field using `$MinSup`, along with other necessary filters. The `filtervcf_based_on_length.py` filters based on SV length or the `SVLEN` field, only keeping calls with an absolute value greater than or equal to 50. This is important for accurate benchmarking since the ground truth set will only contain SVs >= 50 bp in length. 
+The following is an example of filtering all of the cuteSV VCFs. Here, the directory cuteSV contains several subdirectories, each named according to the file name pattern and contains the VCF output from the caller. `minsup_byname.py SKBR3_ONT_sort_5X` will output the minimum supporting reads for 5X, which is `2` based on the table above. Then `bcftools view -i` can filter the `INFO/RE` field using `$MinSup`, along with other necessary filters. The `filtervcf_based_on_length.py` filters based on SV length or the `SVLEN` field, only keeping calls with an absolute value greater than or equal to 50. This is important for accurate benchmarking since the ground truth set will only contain SVs >= 50 bp in length. 
 
 ### cuteSV
 ```
@@ -213,4 +223,8 @@ python filter_vcf_based_on_length.py -i temp_SVDSS_${name}.vcf -o ~/filtered_vcf
 bcftools filter -i 'QUAL >= '"$MinSup"'&& FILTER == "PASS" && INFO/SUPPORT >= 2' variants.vcf > temp_SVIM_${name}.vcf
 python filter_vcf_based_on_length.py -i temp_SVIM_${name}.vcf -o ~/filtered_vcf/SVIM_${name}.vcf -l 50
 ```
+
+## 5. Preparing the ground truth set
+For the ground truth, I used the package `SURVIVOR` and the MAX depth VCFs from all callers, both long-read and short-read. 
+
 
