@@ -1,0 +1,221 @@
+---
+title: "SVplots"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(RColorBrewer)
+library(ggbreak)
+library(hrbrthemes)
+library(ggsci)
+library(extrafont)
+font_import("~/R/x86_64-pc-linux-gnu-library/fonts/",pattern=".TTF") # downloaded Arial for theme_ipsum
+font_import("~/R/x86_64-pc-linux-gnu-library/fonts/",pattern=".ttf")
+extrafont::loadfonts()
+
+setwd("~/yanglab/ANALYSIS/")
+```
+
+```{r Read in data}
+calls <- read.table("caller_results.txt", header=T, sep="\t")
+scores <- read.table("benchmarking_results.csv", header=T, sep="\t")
+truth <- read.table("truth_results.txt", header=T, sep="\t")
+```
+
+```{r Function to prepare data}
+make.plot.data <- function(calls, scores, truth) {
+  # prepare data for combined benchmarking statistics plot 
+  depth_order <- c("5X","10X","15X","20X","25X","30X","MAX")
+  combined_stats <- scores
+  combined_stats$Depth <- factor(scores$Depth, levels = depth_order)
+
+  # prepare data for pie chart
+  truth_data <- truth %>% pivot_longer(cols = c("DEL","DUP","INS","INV","TRA"), names_prefix = "var_", 
+                   names_to = "SV type", values_to = "value")
+  SV_order  <- c("DEL","INS","DUP","INV","TRA")
+  truth_data$`SV type` <- factor(truth_data$`SV type`, levels = SV_order)
+  truth_data <- truth_data %>% arrange(match(`SV type`, SV_order))
+  truth_data$fraction = truth_data$value / sum(truth_data$value)
+  truth_data$ymax = cumsum(truth_data$fraction)
+  truth_data$ymin = c(0, head(truth_data$ymax, n=-1))
+  truth_data$labelPosition <- (truth_data$ymax + truth_data$ymin) / 2
+  truth_data$label <- paste0(truth_data$`SV type`, "\n",truth_data$value)
+  truth_data <- truth_data %>% arrange(match(`SV type`, SV_order))
+  
+  # prepare data for plots per SV type
+  SVtypes_data <- calls
+  depth_order <- c("5X","10X","15X","20X","25X","30X","MAX")
+  SVtypes_data$Depth <- factor(calls$Depth, levels = depth_order)
+
+  # prepare data for plots SV caller
+  SVcaller_data <- merge(calls, scores, by=c("Caller","Tech","Depth"))
+  SVcaller_data <- split(SVcaller_data, f=SVcaller_data$Caller)
+  ## order the depth
+  callers <- unique(calls$Caller)
+  SVcaller_calls <- list()
+  SVcaller_scores <- list()
+  for (x in callers) {
+    depth_order <- c("5X","10X","15X","20X","25X","30X","MAX")
+    SV_order  <- c("DEL","INS","DUP","INV","TRA")
+    SVcaller_calls[[x]] <- SVcaller_data[[x]] %>% arrange(match(Depth, depth_order))
+    SVcaller_calls[[x]] <- SVcaller_calls[[x]] %>%
+      pivot_longer(cols = c("DEL","INS","DUP","INV","TRA"), names_prefix = "var_", 
+                   names_to = "SV_type", values_to = "calls")
+    SVcaller_calls[[x]]$SV_type <- factor(SVcaller_calls[[x]]$SV_type, levels = SV_order)
+    SVcaller_calls[[x]]$Depth <- factor(SVcaller_calls[[x]]$Depth, levels = depth_order)
+    SVcaller_scores[[x]] <- SVcaller_data[[x]] %>%
+      select("Caller","Tech","Depth","Precision","Recall","F1") %>% 
+      pivot_longer(cols = c("Precision","Recall","F1"), names_prefix = "var_", 
+                 names_to = "Statistic", values_to = "Score")
+    SVcaller_scores[[x]]$Depth <- factor(SVcaller_scores[[x]]$Depth, levels = depth_order)
+  }
+  return_list <- list("combinedstats"=combined_stats, "donut"=truth_data, "SVtypes"=SVtypes_data, "calls"=SVcaller_calls, "scores"=SVcaller_scores)
+  return(return_list)
+}
+
+```
+
+```{r Functions for plots}
+# combined stats plot
+stats_plot <- function (stats_data) {
+  myplot <- ggplot(data=stats_data, aes(x=Precision,y=Recall,color=Depth,group=Tech)) +
+                     geom_point(stat="identity",aes(shape=Caller), size = 3) +
+                     xlim(c(0,1))+
+                     ylim(c(0,1))+
+                     labs(subtitle="(Total SVs)") +
+                     facet_wrap(~ Tech, nrow=1) +
+                     scale_color_viridis(discrete=T,option="turbo",direction=1,begin=0.1,end=0.8) +
+                     theme_ipsum(grid="XY", axis="xy") +
+                     theme(legend.title = element_blank()) 
+  return(myplot)
+}
+
+# donut plot
+donut_plot <- function (donut_data) {
+  myplot <- ggplot(donut_data, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=`SV type`)) +
+                   geom_rect() +
+                   labs(subtitle="Ground truth SKBR3") +
+                   annotate(geom="text", x=1.5, y=0.25, label=unique(donut_data$Tot), color="black", size=7) +
+                   annotate(geom="text", x=3.5, y=0.22, label=unique(donut_data$value[1]), color="white", size=5) +
+                   annotate(geom="text", x=3.5, y=0.72, label=unique(donut_data$value[2]), color="white", size=5) +
+                   annotate(geom="text", x=3.8, y=0.95, label=unique(donut_data$value[3]), color="white", size=5) +
+                   annotate(geom="text", x=3.5, y=0.98, label=unique(donut_data$value[4]), color="white", size=5) +
+                   annotate(geom="text", x=3.22, y=0.01, label=unique(donut_data$value[5]), color="white", size=5) +
+                   coord_polar(theta="y") +
+                   theme_void() +
+                   xlim(c(1.5, 4)) +
+                   scale_fill_lancet() +
+                   theme(legend.title = element_blank())
+  return(myplot)
+}
+# plot by SV type
+prep_SVtypes_plot <- function (svdata, x) {
+    myplot <- ggplot(data=svdata, aes(x=Depth,y=eval(parse(text = x)))) +
+    ylab("") +
+    labs(subtitle=x) +
+    geom_point(stat="identity",aes(shape=Caller)) +
+    facet_wrap(~ Tech, nrow=1) +
+    theme_ipsum(grid="XY", axis="xy") +
+    theme(legend.title = element_blank(),
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+    return(myplot)
+}
+SVtypes_plot <- function (SVtype_data) {
+  SV_list <- c('DEL','INS','DUP','INV','TRA')
+  myplots <- list()
+  myplots <- lapply(SV_list, prep_SVtypes_plot, svdata=SVtype_data)
+  return(myplots)
+}
+
+# bar plot for SV calls 
+calls_plot <- function(plot_data) {
+  myplot <- ggplot(data=plot_data, aes(x=Depth, y=calls, fill=SV_type)) +
+  geom_bar(stat="identity", position="stack", color = NA) +
+  geom_text(aes(Depth, Tot, label=Tot, fill = NULL), size=2.5, vjust=-1, col="black") + # total values
+  labs(subtitle=unique(plot_data$Caller)) +
+  ylab("") +
+  scale_y_continuous(limits = c(0, 20000), breaks=seq(0, 20000, by=5000)) +
+  facet_wrap(~ Tech, nrow=1) +
+  scale_fill_lancet() +
+  theme_ipsum(grid="Y") +
+  theme(legend.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  return(myplot)
+}
+
+# Bar plot for benchmarking scores
+scores_plot <- function(plot_data) {
+  myplot <- ggplot(data=plot_data,aes(x=Depth,y=Score,fill=Statistic)) + 
+  geom_bar(stat="identity", position="dodge", color = NA) +
+  labs(subtitle=unique(plot_data$Caller)) +
+  ylab("") +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.1)) +
+  facet_wrap(~ Tech, nrow=1) +
+  scale_fill_startrek() +
+#  scale_fill_aaas() +
+  theme_ipsum(grid="Y") +
+  theme(legend.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  return(myplot)
+}
+```
+
+```{r Run}
+mydata <- make.plot.data(calls,scores,truth)
+
+# combined benchmarking
+plot.stats <- stats_plot(mydata$combinedstats)
+
+# donut chart for ground truth
+plot.donut <- donut_plot(mydata$donut)
+
+# Number of SV calls by each SV type
+plot.SVtypes <- SVtypes_plot(mydata$SVtypes)
+
+# Number SV calls and benchmarking stats by SV caller
+plot.calls.cuteSV <- calls_plot(mydata$calls$cuteSV) #+ scale_y_break(c(1000,20000), scales = 1.5)
+plot.scores.cuteSV <- scores_plot(mydata$scores$cuteSV)
+
+plot.calls.DeBreak <- calls_plot(mydata$calls$DeBreak) #+ scale_y_break(c(200, 1000), scales = 1.5)
+plot.scores.DeBreak <- scores_plot(mydata$scores$DeBreak)
+
+plot.calls.PBSV <- calls_plot(mydata$calls$PBSV) #+ scale_y_break(c(5000, 8000), scales = 1.5)
+plot.scores.PBSV <- scores_plot(mydata$scores$PBSV)
+
+plot.calls.Sniffles <- calls_plot(mydata$calls$Sniffles)
+plot.scores.Sniffles <- scores_plot(mydata$scores$Sniffles)
+
+plot.calls.SVDSS <- calls_plot(mydata$calls$SVDSS) + 
+  scale_y_continuous(limits=c(0,45000), breaks = seq(0,42000,10000)) +
+  scale_y_break(c(20000,25000),scales=0.3)
+plot.scores.SVDSS <- scores_plot(mydata$scores$SVDSS) 
+
+plot.calls.SVIM <- calls_plot(mydata$calls$SVIM)
+plot.scores.SVIM <- scores_plot(mydata$scores$SVIM)
+```
+
+
+
+```{r Plot layout}
+plot.stats / plot.donut
+plot.SVtypes[[1]] / plot.SVtypes[[2]]
+plot.SVtypes[[3]] / plot.SVtypes[[4]]
+plot.SVtypes[[5]] / ggplot() + theme_void()
+plot.calls.cuteSV / plot.scores.cuteSV
+plot.calls.DeBreak / plot.scores.DeBreak
+plot.calls.PBSV / plot.scores.PBSV
+plot.calls.Sniffles / plot.scores.Sniffles
+plot.calls.SVDSS / plot.scores.SVDSS
+plot.calls.SVIM / plot.scores.SVIM
+```
+
+
+```{r PDF of plots}
+pdf(file="SVplots.pdf", width = 8.5, height = 11)
+<< Plot layout >>
+dev.off()
+```
