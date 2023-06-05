@@ -329,4 +329,11 @@ stat=$(sed -n '4,4p;4q' results/stats/stats_final_gt.txt)
 echo -e "${stat}" >> results/truth_results.txt
 ```
 
-After acquiring these tables, I created plots in R to visualize [the results]. 
+## 8. Visualization
+After acquiring the result tables, I created plots in R for visualization. Some initial conclusions: from the first plot, it is obvious that SVDSS VCFs need to be re-filtered, perhaps using the `INFO/NV` instead of `INFO/COV`. The second and third plots show that there isn't a huge difference at depths from 15X to 30X using PBSV on ONT data. And compared to the MAX ONT depth of 61X, there is almost no difference. In this case, it would be a waste of resources to sequence higher than 30X.
+![totalSVs](https://github.com/timothy-pan/benchmarking-structural-variant-callers/assets/129334902/13ccf55e-c50c-41dc-9e19-a426ddb66638)
+![PBSV_SV](https://github.com/timothy-pan/benchmarking-structural-variant-callers/assets/129334902/fa06c21b-f904-467c-925c-653f0895e148)
+![PBSV_stats](https://github.com/timothy-pan/benchmarking-structural-variant-callers/assets/129334902/64a6766f-8e37-4fcf-9b07-7d1fd3c03a31)
+
+## Acknowledgements and further reading
+This work was performed in the [laboratory of Rendong Yang](https://ylab-hi.github.io/) at Northwestern University. During my lab rotation, [QingXiang Guo](https://github.com/qingxiangguo) provided direction and python scripts filtervcf_based_on_length.py, get_genome_depth.py, SVclassifier_SvABA.py
