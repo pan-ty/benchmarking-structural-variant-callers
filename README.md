@@ -234,10 +234,10 @@ do
 bcftools sort $maxfile -o sorted_$maxfile
 done
 ```
-Then I ran `SURVIVOR merge` using intersections and unions as outlined below. In this analysis, the maximum allowed distance between SVs was 50, the agreement of SV type and strand was disregarded, and only SVs greater or equal to 50 bp in length were compared. Read about SURVIVOR [here](https://github.com/fritzsedlazeck/SURVIVOR/wiki). 
+Then I ran `SURVIVOR merge` using intersections and unions as outlined below. In this analysis, intersections used options `50 2 0 0 0 50`, meaning that the maximum allowed distance between SVs was 50, the agreement of SV type and strand was disregarded, and only SVs greater or equal to 50 bp in length were compared. For unions, the `2` was changed to `0`. Read about SURVIVOR [here](https://github.com/fritzsedlazeck/SURVIVOR/wiki). 
 ```
-# For data of each sequencing platform (ONT, PBCLR, SR), obtain a merge of all SVs that are supported by at least 2 callers
 
+# Intersections. Within ONT, PBCLR, SR
 ls sorted*ONT*.vcf > ONT_sample_files
 SURVIVOR merge ONT_sample_files 50 2 0 0 0 50 truth_set/ONT_LR_gt.vcf
 
@@ -247,12 +247,12 @@ SURVIVOR merge PBCLR_sample_files 50 2 0 0 0 50 truth_set/PBCLR_LR_gt.vcf
 ls sorted*.vcf > SR_sample_files
 SURVIVOR merge SR_sample_files 50 2 0 0 0 50 truth_set/SR_gt.vcf
 
-# Merge the ONT and PBCLR together for LR ground truth
+# Union. ONT and PBCLR for LR ground truth
 cd truth_set
 ls *LR_gt.vcf > LR_sample_files
 SURVIVOR merge LR_sample_files 50 0 0 0 0 50 union_LR_gt.vcf
 
-# Finally, merge the LR and SR together
+# Union. LR and SR for final ground truth
 ls union_LR_gt.vcf SR_gt.vcf > final_sample_files
 SURVIVOR merge final_sample_files 50 0 0 0 0 50 final_gt.vcf
 ```
