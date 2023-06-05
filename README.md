@@ -55,8 +55,8 @@ samtools view -s ${ONT_FRAC} -b SKBR3_ONT_sort_MAX.bam > SKBR3_ONT_sort_${d}X.ba
 samtools view -s ${PBCLR_FRAC} -b SKBR3_PBCLR_sort_MAX.bam > SKBR3_PBCLR_sort_${d}X.bam
 samtools view -s ${SR_FRAC} -b SKBR3_SR_sort_MAX.bam > SKBR3_SR_sort_${d}X.bam
 done
-```bash
-There will be several files after this step. Example of resulting files with file name patterns:
+```
+<br>There will be several files after this step. Example of resulting files with file name patterns:
 >SKBR3_ONT_sort_5X.bam<br>
 >SKBR3_ONT_sort_10X.bam<br>
 >SKBR3_PBCLR_sort_30X.bam<br>
