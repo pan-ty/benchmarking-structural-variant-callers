@@ -169,6 +169,7 @@ lumpyexpress -B SKBR3_SR_sort_MAX.bam -o SKBR3_SR_sort_MAX.vcf
 
 # SvABA
 svaba run -t SKBR3_SR_sort_MAX.bam -p 8 -D dbsnp_indel.vcf -a SKBR3_SR_sort_MAX -G GRCh38.p13.genome.fa
+
 ```
 
 ## 4. FILTERING VCFs
@@ -222,6 +223,16 @@ python filter_vcf_based_on_length.py -i temp_SVDSS_${name}.vcf -o ~/filtered_vcf
 # SVIM
 bcftools filter -i 'QUAL >= '"$MinSup"'&& FILTER == "PASS" && INFO/SUPPORT >= 2' variants.vcf > temp_SVIM_${name}.vcf
 python filter_vcf_based_on_length.py -i temp_SVIM_${name}.vcf -o ~/filtered_vcf/SVIM_${name}.vcf -l 50
+
+# lumpy
+# The VCFs should be reheaded with contigs first
+bcftools reheader --fai GRCh38.p13.genome.fa.fai SKBR3_SR_sort_MAX.vcf -o rehead_lumpy_SKBR3_SR_sort_MAX.vcf
+bcftools view -i 'INFO/PE >='"${MinSup}" rehead_lumpy_SKBR3_SR_sort_MAX.vcf > temp_lumpy_SKBR3_SR_sort_MAX.vcf
+python filter_vcf_based_on_length.py -i temp_lumpy_SKBR3_SR_sort_MAX.vcf -o lumpy_SKBR3_SR_sort_MAX.vcf -l 50
+
+# SvABA
+# to convert BND to basic SV types on the already-filtered output .svaba.sv.vcf
+python SVclassifier_SvABA.py -i SKBR3_SR_sort_MAX.svaba.sv.vcf -o ~/filtered_vcf/svaba_${name}.vcf
 ```
 
 ## 5. Preparing the ground truth set
