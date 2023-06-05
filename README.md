@@ -336,4 +336,4 @@ After acquiring the result tables, I created plots in R for visualization. Some 
 ![PBSV_stats](https://github.com/timothy-pan/benchmarking-structural-variant-callers/assets/129334902/64a6766f-8e37-4fcf-9b07-7d1fd3c03a31)
 
 ## Acknowledgements and further reading
-This work was performed in the [laboratory of Rendong Yang](https://ylab-hi.github.io/) at Northwestern University. During my lab rotation, [QingXiang Guo](https://github.com/qingxiangguo) provided direction and python scripts filtervcf_based_on_length.py, get_genome_depth.py, SVclassifier_SvABA.py
+This work was performed in the [laboratory of Rendong Yang](https://ylab-hi.github.io/) at Northwestern University. During my lab rotation, [QingXiang Guo](https://github.com/qingxiangguo) provided direction and python scripts filtervcf_based_on_length.py, get_genome_depth.py, SVclassifier_SvABA.py The work presented above is far from finalized, and is an ongoing project in the lab. 
