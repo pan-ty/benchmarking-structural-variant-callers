@@ -323,7 +323,7 @@ echo -e "${Caller}\t${Tech}\t${DepthX}\t${stat}" >> results/caller_results.txt
 done
 ```
 ### Ground truth
-A similar method using bash for a table of SVs in the ground truth VCF:
+A similar method using bash for a table of SVs contained by the ground truth VCF:
 ```
 # header for results file
 echo -e "Tot\tDEL\tDUP\tINS\tINV\tTRA" >> results/truth_results.txt
@@ -333,3 +333,4 @@ stat=$(sed -n '4,4p;4q' results/stats/stats_final_gt.txt)
 echo -e "${stat}" >> results/truth_results.txt
 ```
 
+After acquiring these tables, I created plots in R to visualize [the results]. 
