@@ -294,16 +294,42 @@ done
 
 ## 7. Results
 The following are methods I used to extract benchmarking results, number of SV calls and types by caller, and ground truth information so I could more easily create plots in R. 
-### Benchmarking
+### Benchmarking statistics
 `TRUVARI` outputs a `summary.json` file for each comparison with the ground truth (e.g., PBSV_SKBR3_ONT_sort_25X.vcf with final_gt.vcf). `get_benchmark.py` should create a table with the Caller, Tech (ONT/PBCLR), Depth, Precision, Recall, and F1 as columns, and corresponding values from each comparison in the rows. This only works if correct file name patterns and output directory were used. 
 ```
 results=benchmarking/
 # subdirectories created by TRUVARI within the benchmarking folder might look like cuteSV_SKBR3_ONT_sort_5X/ and DeBreak_SKBR3_PBCLR_sort_30X
 python get_benchmark.py ${results}
 ```
-### SV calls
+### SV calls by depth and caller
+Using `SURVIVOR stats` and bash version to get total SVs, DEL, DUP, INS, INV, TRA in a table:
 ```
+# header for results file
+echo -e "Caller\tTech\tDepth\tTot\tDEL\tDUP\tINS\tINV\tTRA" >> results/caller_results.txt
 
+cd filtered_vcf
+
+for file in *.vcf
+do
+name=$(basename ${file} .vcf)
+DepthX=$(echo ${name} | awk -F'[_]' '{print $5}')
+Tech=$(echo ${name} | awk -F'[_]' '{print $3}')
+Caller=$(echo ${name} | awk -F'[_]' '{print $1}')
+
+SURVIVOR stats ${name}.vcf vcf_summary -1 -1 -1 > results/stats/stats_${name}.txt
+
+stat=$(sed -n '4,4p;4q' results/stats/stats_${name}.txt)
+echo -e "${Caller}\t${Tech}\t${DepthX}\t${stat}" >> results/caller_results.txt
+done
 ```
 ### Ground truth
+A similar method using bash for a table of SVs in the ground truth VCF:
+```
+# header for results file
+echo -e "Tot\tDEL\tDUP\tINS\tINV\tTRA" >> results/truth_results.txt
+
+SURVIVOR stats truth_set/final_gt.vcf vcf_summary -1 -1 -1 > results/stats/stats_final_gt.txt
+stat=$(sed -n '4,4p;4q' results/stats/stats_final_gt.txt)
+echo -e "${stat}" >> results/truth_results.txt
+```
 
