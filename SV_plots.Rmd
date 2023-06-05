@@ -165,56 +165,48 @@ scores_plot <- function(plot_data) {
 
 ```{r Run}
 mydata <- make.plot.data(calls,scores,truth)
-
-# combined benchmarking
-plot.stats <- stats_plot(mydata$combinedstats)
-
-# donut chart for ground truth
-plot.donut <- donut_plot(mydata$donut)
-
-# Number of SV calls by each SV type
-plot.SVtypes <- SVtypes_plot(mydata$SVtypes)
-
-# Number SV calls and benchmarking stats by SV caller
-plot.calls.cuteSV <- calls_plot(mydata$calls$cuteSV) #+ scale_y_break(c(1000,20000), scales = 1.5)
-plot.scores.cuteSV <- scores_plot(mydata$scores$cuteSV)
-
-plot.calls.DeBreak <- calls_plot(mydata$calls$DeBreak) #+ scale_y_break(c(200, 1000), scales = 1.5)
-plot.scores.DeBreak <- scores_plot(mydata$scores$DeBreak)
-
-plot.calls.PBSV <- calls_plot(mydata$calls$PBSV) #+ scale_y_break(c(5000, 8000), scales = 1.5)
-plot.scores.PBSV <- scores_plot(mydata$scores$PBSV)
-
-plot.calls.Sniffles <- calls_plot(mydata$calls$Sniffles)
-plot.scores.Sniffles <- scores_plot(mydata$scores$Sniffles)
-
-plot.calls.SVDSS <- calls_plot(mydata$calls$SVDSS) + 
-  scale_y_continuous(limits=c(0,45000), breaks = seq(0,42000,10000)) +
-  scale_y_break(c(20000,25000),scales=0.3)
-plot.scores.SVDSS <- scores_plot(mydata$scores$SVDSS) 
-
-plot.calls.SVIM <- calls_plot(mydata$calls$SVIM)
-plot.scores.SVIM <- scores_plot(mydata$scores$SVIM)
 ```
 
 
+```{r Plots}
+# combined benchmarking
+stats_plot(mydata$combinedstats) /
 
-```{r Plot layout}
-plot.stats / plot.donut
+# donut chart for ground truth
+donut_plot(mydata$donut)
+
+# Number of SV calls by each SV type
+plot.SVtypes <- SVtypes_plot(mydata$SVtypes)
 plot.SVtypes[[1]] / plot.SVtypes[[2]]
 plot.SVtypes[[3]] / plot.SVtypes[[4]]
 plot.SVtypes[[5]] / ggplot() + theme_void()
-plot.calls.cuteSV / plot.scores.cuteSV
-plot.calls.DeBreak / plot.scores.DeBreak
-plot.calls.PBSV / plot.scores.PBSV
-plot.calls.Sniffles / plot.scores.Sniffles
-plot.calls.SVDSS / plot.scores.SVDSS
-plot.calls.SVIM / plot.scores.SVIM
+
+# Number SV calls and benchmarking stats by SV caller
+calls_plot(mydata$calls$cuteSV) / #+ scale_y_break(c(1000,20000), scales = 1.5)
+scores_plot(mydata$scores$cuteSV)
+
+calls_plot(mydata$calls$DeBreak) /#+ scale_y_break(c(200, 1000), scales = 1.5)
+scores_plot(mydata$scores$DeBreak)
+
+calls_plot(mydata$calls$PBSV) /#+ scale_y_break(c(5000, 8000), scales = 1.5)
+scores_plot(mydata$scores$PBSV)
+
+calls_plot(mydata$calls$Sniffles) /
+scores_plot(mydata$scores$Sniffles)
+
+calls_plot(mydata$calls$SVDSS) + 
+  scale_y_continuous(limits=c(0,45000), breaks = seq(0,42000,10000)) +
+  scale_y_break(c(20000,25000),scales=0.3) /
+scores_plot(mydata$scores$SVDSS) 
+
+calls_plot(mydata$calls$SVIM) /
+scores_plot(mydata$scores$SVIM)
 ```
 
 
 ```{r PDF of plots}
 pdf(file="SVplots.pdf", width = 8.5, height = 11)
-<< Plot layout >>
+<< Plots >>
 dev.off()
 ```
+
