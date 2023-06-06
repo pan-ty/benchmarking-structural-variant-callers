@@ -330,7 +330,7 @@ echo -e "${stat}" >> results/truth_results.txt
 ```
 
 ## 8. Visualization
-After acquiring the result tables, I created plots in R for visualization. Some initial conclusions: from the first plot, it is obvious that SVDSS VCFs need to be re-filtered, perhaps using the `INFO/NV` instead of `INFO/COV`. The second and third plots show that there isn't a huge difference at depths from 15X to 30X using PBSV on ONT data. And compared to the MAX ONT depth of 61X, there is almost no difference. In this case, it would be a waste of resources to sequence higher than 30X.
+After acquiring the result tables, I created plots in R for visualization. Some initial conclusions: from the first plot, it is obvious that SVDSS VCFs need to be re-filtered, perhaps using the `INFO/NV` instead of `INFO/COV`. Recall was uniformly lower, indicating either that depth-specific filtering needs to be improved or an exceedingly comprehensive ground truth set. The second and third plots show that there isn't a huge difference at depths from 15X to 30X using PBSV on ONT data. And compared to the MAX ONT depth of 61X, there is almost no difference. In this case, it would be a waste of resources to sequence higher than 30X.
 ![totalSVs](https://github.com/timothy-pan/benchmarking-structural-variant-callers/assets/129334902/13ccf55e-c50c-41dc-9e19-a426ddb66638)
 ![PBSV_SV](https://github.com/timothy-pan/benchmarking-structural-variant-callers/assets/129334902/fa06c21b-f904-467c-925c-653f0895e148)
 ![PBSV_stats](https://github.com/timothy-pan/benchmarking-structural-variant-callers/assets/129334902/64a6766f-8e37-4fcf-9b07-7d1fd3c03a31)
