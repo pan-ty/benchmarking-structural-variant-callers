@@ -17,6 +17,7 @@ font_import("~/R/x86_64-pc-linux-gnu-library/fonts/",pattern=".TTF") # downloade
 font_import("~/R/x86_64-pc-linux-gnu-library/fonts/",pattern=".ttf")
 extrafont::loadfonts()
 
+setwd("~/yanglab/ANALYSIS/")
 ```
 
 ```{r Read in data}
@@ -72,7 +73,19 @@ make.plot.data <- function(calls, scores, truth) {
                  names_to = "Statistic", values_to = "Score")
     SVcaller_scores[[x]]$Depth <- factor(SVcaller_scores[[x]]$Depth, levels = depth_order)
   }
-  return_list <- list("combinedstats"=combined_stats, "donut"=truth_data, "SVtypes"=SVtypes_data, "calls"=SVcaller_calls, "scores"=SVcaller_scores)
+  # Combined bar plot for ONT and PBCLR
+  calls_data <- calls
+  depth_order <- c("5X","10X","15X","20X","25X","30X","MAX")
+  SV_order  <- c("DEL","INS","DUP","INV","TRA")
+  calls_data <- calls_data %>% pivot_longer(cols = c("DEL","INS","DUP","INV","TRA"), names_prefix = "var_", 
+                     names_to = "SV_type", values_to = "calls")
+  calls_data$SV_type <- factor(calls_data$SV_type, levels = SV_order)
+  calls_data$Depth <- factor(calls_data$Depth, levels = depth_order)
+  calls_ONT <- calls_data %>% filter(Tech=="ONT")
+  calls_PBCLR <- calls_data %>% filter(Tech=="PBCLR")
+  combined_calls <- list(ONT=calls_ONT, PBCLR=calls_PBCLR)
+
+  return_list <- list("combinedstats"=combined_stats, "donut"=truth_data, "SVtypes"=SVtypes_data, "calls"=SVcaller_calls, "scores"=SVcaller_scores, "combinedcalls"=combined_calls)
   return(return_list)
 }
 
@@ -161,9 +174,41 @@ scores_plot <- function(plot_data) {
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   return(myplot)
 }
+
+combined_ONT <- function(calls_ONT) {
+  ONT_plot <- ggplot(data=calls_ONT, aes(x=Caller, y=calls, fill=SV_type, split=Depth)) +
+    geom_bar(stat="identity", position="stack", color = NA) +
+    geom_text(aes(Caller, Tot, label=Tot, fill = NULL), size=2.5, hjust=1.1,col="yellow", angle = 90) + # total values
+    labs(subtitle="ONT") +
+    ylab("") +
+    xlab("") +
+    scale_y_continuous(limits = c(0, 20000), breaks=seq(0, 20000, by=5000)) +
+   facet_wrap(~ Depth, nrow=1) +
+    scale_fill_lancet() +
+    theme_ipsum(grid="Y") +
+    theme(legend.title = element_blank(),
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  return(ONT_plot)
+}
+combined_PBCLR <- function(calls_PBCLR) {
+  PBCLR_plot <- ggplot(data=calls_PBCLR, aes(x=Caller, y=calls, fill=SV_type, split=Depth)) +
+    geom_bar(stat="identity", position="stack", color = NA) +
+    geom_text(aes(Caller, Tot, label=Tot, fill = NULL), size=2.5, hjust=1.1,col="yellow", angle = 90) + # total values
+    labs(subtitle="PBCLR") +
+    ylab("") +
+    xlab("") +
+   # scale_y_continuous(limits=c(0,50000), breaks = seq(0,50000,10000)) +
+    scale_y_break(c(20000,20000),scales=0.1, ticklabels=40000) +
+   facet_wrap(~ Depth, nrow=1) +
+    scale_fill_lancet() +
+    theme_ipsum(grid="Y") +
+    theme(legend.title = element_blank(),
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  return(PBCLR_plot)
+}
 ```
 
-```{r Run}
+```{r Run and save}
 mydata <- make.plot.data(calls,scores,truth)
 ```
 
@@ -182,7 +227,7 @@ plot.SVtypes[[3]] / plot.SVtypes[[4]]
 plot.SVtypes[[5]] / ggplot() + theme_void()
 
 # Number SV calls and benchmarking stats by SV caller
-calls_plot(mydata$calls$cuteSV) / #+ scale_y_break(c(1000,20000), scales = 1.5)
+calls_plot(mydata$calls$cuteSV) /#+ scale_y_break(c(1000,20000), scales = 1.5)
 scores_plot(mydata$scores$cuteSV)
 
 calls_plot(mydata$calls$DeBreak) /#+ scale_y_break(c(200, 1000), scales = 1.5)
@@ -194,13 +239,28 @@ scores_plot(mydata$scores$PBSV)
 calls_plot(mydata$calls$Sniffles) /
 scores_plot(mydata$scores$Sniffles)
 
-calls_plot(mydata$calls$SVDSS) + 
-  scale_y_continuous(limits=c(0,45000), breaks = seq(0,42000,10000)) +
-  scale_y_break(c(20000,25000),scales=0.3) /
+svdss.1 <- ggplot(data=mydata$calls$SVDSS, aes(x=Depth, y=calls, fill=SV_type)) +
+  geom_bar(stat="identity", position="stack", color = NA) +
+  geom_text(aes(Depth, Tot, label=Tot, fill = NULL), size=2.5, vjust=-1, col="black") + # total values
+  labs(subtitle=unique("SVDSS")) +
+  ylab("") +
+  scale_y_continuous(limits=c(0,50000), breaks = seq(0,50000,10000)) +
+  scale_y_break(c(20000,25000),scales=0.3) +
+  facet_wrap(~ Tech, nrow=1) +
+  scale_fill_lancet() +
+  theme_ipsum(grid="Y") +
+  theme(legend.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+svdss.1 /
 scores_plot(mydata$scores$SVDSS) 
 
 calls_plot(mydata$calls$SVIM) /
 scores_plot(mydata$scores$SVIM)
+
+# combined bar plots 
+combined_ONT(mydata$combinedcalls$ONT)
+combined_PBCLR(mydata$combinedcalls$PBCLR)
+
 ```
 
 
@@ -209,4 +269,3 @@ pdf(file="SVplots.pdf", width = 8.5, height = 11)
 << Plots >>
 dev.off()
 ```
-
